@@ -7,38 +7,74 @@ import (
 )
 
 const (
-	host = ""
-	port = ""
-	user = ""
-	pwd = ""
-	dbname = ""
+	DB_USER     = "postgres"
+	DB_PASSWORD = "postgres"
+	DB_NAME     = "postgres"
 )
 
 func Connect() {
-	psqlconn := fmt.Sprintf("host = %s port = %d user = %s dbname = %s sslmode=disable", host, port, user, dbname)
-
-	db, err := sql.Open("postgres", psqlconn)
+	db, err := sql.Open("postgres", "user=postgres password=postgres dbname=postgres sslmode=disable")
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
-
 	defer db.Close()
 
-	insertStmt := `insert into "Employee("Name", "EmpID") values ('Yosef', 12)`
-
-	result, err := db.Exec(insertStmt)
+	err = db.Ping()
 	if err != nil {
-		log.Println(err)
+		panic(err)
+	} else {
+		fmt.Println("Connected")
 	}
 
-	println(result)
-
-	insertDynStmt := `insert into "Employee("Name", "EmpID") values ($1, $2)`
-
-	result2, err := db.Exec(insertDynStmt, "Binyam", 160)
+	rows, err := db.Query(
+		`SELECT amname, amstrategies, amsupport, amcanorder, amcanorderbyop, 
+       amcanbackward, amcanunique, amcanmulticol, amoptionalkey, amsearcharray, 
+       amsearchnulls, amstorage, amclusterable, ampredlocks, amkeytype, 
+       aminsert, ambeginscan, amgettuple, amgetbitmap, amrescan, amendscan, 
+       ammarkpos, amrestrpos, ambuild, ambuildempty, ambulkdelete, amvacuumcleanup, 
+       amcanreturn, amcostestimate, amoptions
+       FROM pg_am`)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 
-	println(result2)
+	// Columns
+	cs, err := rows.Columns()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%v\n", cs)
+
+	// Query Row
+	var amname string
+	err1 := db.QueryRow(`SELECT amname FROM pg_am`).Scan(&amname)
+	switch {
+	case err1 == sql.ErrNoRows:
+		log.Printf("No user with that ID.")
+	case err1 != nil:
+		log.Fatal(err)
+	default:
+		fmt.Printf("amname is %s\n", amname)
+	}
+
+	// Query
+	rows1, err := db.Query(`SELECT amname FROM pg_am`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for rows1.Next() {
+		var amname string
+		if e := rows1.Scan(&amname); e != nil {
+			fmt.Println(e)
+		}
+		fmt.Printf("amname is %s\n", amname)
+	}
+}
+
+func CheckError(err error) {
+	if err != nil {
+		fmt.Println(err)
+	}
 }
